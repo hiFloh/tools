@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser Analyzer</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card-bg: #ffffff;
+    --text: #16181d;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #4f46e5;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --card-bg: #181b21;
+      --text: #e6e8eb;
+      --muted: #9aa1ac;
+      --border: #2a2e37;
+      --accent: #818cf8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --card-bg: #181b21;
+    --text: #e6e8eb;
+    --muted: #9aa1ac;
+    --border: #2a2e37;
+    --accent: #818cf8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .k { color: var(--muted); flex-shrink: 0; }
+  .row .v {
+    font-family: var(--mono);
+    text-align: right;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-family: -apple-system, sans-serif;
+  }
+  .pill.yes { background: rgba(34,197,94,0.15); color: #16a34a; }
+  .pill.no { background: rgba(239,68,68,0.15); color: #dc2626; }
+  .full { grid-column: 1 / -1; }
+  .swatch {
+    display: inline-block; width: 14px; height: 14px; border-radius: 4px;
+    vertical-align: middle; margin-right: 6px; border: 1px solid var(--border);
+  }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; margin-top: 30px; }
+  #liveBox { min-width: 60px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔍 Browser Analyzer</h1>
+    <div class="sub">Everything below is read live from your own browser, on-device. Nothing is sent anywhere.</div>
+  </header>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>Viewport & Screen</h2>
+      <div id="viewportCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Device Type</h2>
+      <div id="deviceCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Display Capabilities</h2>
+      <div id="displayCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Input & Interaction</h2>
+      <div id="inputCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Browser & OS</h2>
+      <div id="browserCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Graphics (WebGL)</h2>
+      <div id="gpuCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Network</h2>
+      <div id="networkCard"></div>
+    </div>
+
+    <div class="card">
+      <h2>Locale & Preferences</h2>
+      <div id="localeCard"></div>
+    </div>
+
+    <div class="card full">
+      <h2>Live (resize / rotate your window or device)</h2>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+        <div><div class="sub">Viewport</div><div id="liveViewport" style="font-family:var(--mono); font-size:1.1rem;">-</div></div>
+        <div><div class="sub">Orientation</div><div id="liveOrientation" style="font-family:var(--mono); font-size:1.1rem;">-</div></div>
+        <div><div class="sub">DPR</div><div id="liveDpr" style="font-family:var(--mono); font-size:1.1rem;">-</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Static, self-contained page — host it anywhere (or just open the file locally). No backend, no tracking, no external requests.</footer>
+</div>
+
+<script>
+function row(k, v) {
+  return `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+}
+function pill(bool) {
+  return bool ? '<span class="pill yes">yes</span>' : '<span class="pill no">no</span>';
+}
+
+function safe(fn, fallback) {
+  try { return fn(); } catch (e) { return fallback ?? '—'; }
+}
+
+// ---------- Viewport & Screen ----------
+function renderViewport() {
+  const html = [
+    row('Viewport (CSS px)', `${window.innerWidth} × ${window.innerHeight}`),
+    row('Screen resolution', `${screen.width} × ${screen.height}`),
+    row('Available screen', `${screen.availWidth} × ${screen.availHeight}`),
+    row('Device pixel ratio', window.devicePixelRatio || 1),
+    row('Actual pixels (screen × DPR)', `${Math.round(screen.width*(window.devicePixelRatio||1))} × ${Math.round(screen.height*(window.devicePixelRatio||1))}`),
+    row('Color depth', `${screen.colorDepth}-bit`),
+    row('Orientation', safe(()=>screen.orientation.type, 'unknown')),
+  ].join('');
+  document.getElementById('viewportCard').innerHTML = html;
+}
+
+// ---------- Device type ----------
+function renderDevice() {
+  const ua = navigator.userAgent;
+  const isMobileUA = /Mobi|Android|iPhone|iPod/i.test(ua);
+  const isTabletUA = /Tablet|iPad/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  const coarsePointer = safe(()=>matchMedia('(pointer: coarse)').matches, false);
+  const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  let guess = 'Desktop';
+  if (isTabletUA) guess = 'Tablet';
+  else if (isMobileUA) guess = 'Mobile';
+  else if (touch && coarsePointer && window.innerWidth < 1100) guess = 'Tablet (heuristic)';
+
+  const html = [
+    row('Best guess', `<b>${guess}</b>`),
+    row('Mobile (UA)', pill(isMobileUA)),
+    row('Tablet (UA)', pill(isTabletUA)),
+    row('Touch capable', pill(touch)),
+    row('Max touch points', navigator.maxTouchPoints ?? 0),
+    row('Coarse pointer (media query)', pill(coarsePointer)),
+    row('Standalone / installed PWA', pill(safe(()=>matchMedia('(display-mode: standalone)').matches || navigator.standalone === true, false))),
+  ].join('');
+  document.getElementById('deviceCard').innerHTML = html;
+}
+
+// ---------- Display capabilities ----------
+function renderDisplay() {
+  const html = [
+    row('HDR capable', pill(safe(()=>matchMedia('(dynamic-range: high)').matches, false))),
+    row('Wide color gamut (P3)', pill(safe(()=>matchMedia('(color-gamut: p3)').matches, false))),
+    row('Prefers dark mode', pill(safe(()=>matchMedia('(prefers-color-scheme: dark)').matches, false))),
+    row('Prefers reduced motion', pill(safe(()=>matchMedia('(prefers-reduced-motion: reduce)').matches, false))),
+    row('Prefers reduced transparency', pill(safe(()=>matchMedia('(prefers-reduced-transparency: reduce)').matches, false))),
+    row('Forced colors (high contrast)', pill(safe(()=>matchMedia('(forced-colors: active)').matches, false))),
+    row('Fullscreen supported', pill(!!document.fullscreenEnabled)),
+  ].join('');
+  document.getElementById('displayCard').innerHTML = html;
+}
+
+// ---------- Input ----------
+function renderInput() {
+  const html = [
+    row('Hover supported', pill(safe(()=>matchMedia('(hover: hover)').matches, false))),
+    row('Any-pointer fine (mouse)', pill(safe(()=>matchMedia('(any-pointer: fine)').matches, false))),
+    row('Any-pointer coarse (touch)', pill(safe(()=>matchMedia('(any-pointer: coarse)').matches, false))),
+    row('Pointer events supported', pill('PointerEvent' in window)),
+    row('Gamepad API', pill('getGamepads' in navigator)),
+    row('Vibration API', pill('vibrate' in navigator)),
+    row('Clipboard API', pill(!!navigator.clipboard)),
+  ].join('');
+  document.getElementById('inputCard').innerHTML = html;
+}
+
+// ---------- Browser & OS ----------
+function renderBrowser() {
+  const html = [
+    row('User agent', navigator.userAgent),
+    row('Platform', safe(()=>navigator.userAgentData?.platform || navigator.platform, '—')),
+    row('Vendor', navigator.vendor || '—'),
+    row('Cookies enabled', pill(navigator.cookieEnabled)),
+    row('Do Not Track', navigator.doNotTrack || 'unspecified'),
+    row('CPU cores (logical)', navigator.hardwareConcurrency ?? '—'),
+    row('Device memory (approx GB)', navigator.deviceMemory ?? '—'),
+    row('PDF viewer built-in', pill(!!navigator.pdfViewerEnabled)),
+  ].join('');
+  document.getElementById('browserCard').innerHTML = html;
+}
+
+// ---------- GPU / WebGL ----------
+function renderGpu() {
+  let vendor = '—', renderer = '—', glVersion = '—', supported = false;
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    if (gl) {
+      supported = true;
+      glVersion = gl.getParameter(gl.VERSION);
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      if (dbg) {
+        vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+        renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+      } else {
+        vendor = gl.getParameter(gl.VENDOR);
+        renderer = gl.getParameter(gl.RENDERER);
+      }
+    }
+  } catch (e) {}
+  const html = [
+    row('WebGL supported', pill(supported)),
+    row('GL version', glVersion),
+    row('GPU vendor', vendor),
+    row('GPU renderer', renderer),
+    row('WebGPU available', pill('gpu' in navigator)),
+  ].join('');
+  document.getElementById('gpuCard').innerHTML = html;
+}
+
+// ---------- Network ----------
+function renderNetwork() {
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const html = [
+    row('Online', pill(navigator.onLine)),
+    row('Effective type', c?.effectiveType ?? 'unavailable'),
+    row('Downlink (Mbps est.)', c?.downlink ?? 'unavailable'),
+    row('RTT (ms est.)', c?.rtt ?? 'unavailable'),
+    row('Save-data mode', c ? pill(!!c.saveData) : 'unavailable'),
+    row('Service worker support', pill('serviceWorker' in navigator)),
+  ].join('');
+  document.getElementById('networkCard').innerHTML = html;
+}
+
+// ---------- Locale ----------
+function renderLocale() {
+  const html = [
+    row('Language', navigator.language),
+    row('All languages', (navigator.languages || []).join(', ')),
+    row('Timezone', safe(()=>Intl.DateTimeFormat().resolvedOptions().timeZone, '—')),
+    row('UTC offset (min)', new Date().getTimezoneOffset() * -1),
+    row('Locale date example', new Date().toLocaleDateString()),
+    row('Locale number example', (1234567.89).toLocaleString()),
+  ].join('');
+  document.getElementById('localeCard').innerHTML = html;
+}
+
+// ---------- Live updating block ----------
+function renderLive() {
+  document.getElementById('liveViewport').textContent = `${window.innerWidth} × ${window.innerHeight}`;
+  document.getElementById('liveOrientation').textContent = safe(()=>screen.orientation.type, window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+  document.getElementById('liveDpr').textContent = window.devicePixelRatio || 1;
+}
+
+function renderAll() {
+  renderViewport();
+  renderDevice();
+  renderDisplay();
+  renderInput();
+  renderBrowser();
+  renderGpu();
+  renderNetwork();
+  renderLocale();
+  renderLive();
+}
+
+window.addEventListener('resize', () => { renderViewport(); renderLive(); });
+window.addEventListener('orientationchange', renderLive);
+window.addEventListener('online', renderNetwork);
+window.addEventListener('offline', renderNetwork);
+
+renderAll();
+</script>
+</body>
+</html>
